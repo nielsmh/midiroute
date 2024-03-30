@@ -1,0 +1,40 @@
+{
+	"devices": [
+		{
+			"name": "pc",
+			"input": "hw:3,0,0"
+		},
+		{
+			"name": "sc88",
+			"output": "hw:3,0,1",
+			"features": ["gm", "gs"]
+		},
+		{
+			"name": "mu50",
+			"output": "hw:2,0,0",
+			"features": ["gm", "xg"]
+		},
+		{
+			"name": "ns5r",
+			"output": "hw:2,0,1",
+			"features": ["gm", "xg", "gs"]
+		}
+	],
+	"routes": [
+		{
+			"enabled": true,
+			"source": "pc",
+			"sink": "sc88"
+		},
+		{
+			"enabled": true,
+			"source": "pc",
+			"sink": "mu50"
+		},
+		{
+			"enabled": true,
+			"source": "pc",
+			"sink": "ns5r"
+		}
+	]
+}
