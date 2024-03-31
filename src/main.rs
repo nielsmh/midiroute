@@ -53,7 +53,7 @@ fn main() {
         Err(why) => panic!("oh no! {}", why),
     };
 
-    let _pipelines: Vec<_> = config.routes.iter()
+    let mut pipelines: Vec<_> = config.routes.iter()
         .filter(|route| route.enabled)
         .filter_map(|route| {
             let Some(sourcedev) = config.get_device(&route.source) else {
@@ -95,4 +95,16 @@ fn main() {
             }
         })
         .collect();
+    
+    println!("now running {} pipelines, Ctrl-C to stop", pipelines.len());
+    loop {
+        for pl in pipelines.iter_mut() {
+            if let Err(why) = pl.run() {
+                println!("{}", why);
+            } else {
+                let (ingested, delivered) = pl.get_status();
+                print!("in: {:5}   out: {:5}\r", ingested, delivered);
+            }
+        }
+    }
 }
