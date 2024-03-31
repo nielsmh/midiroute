@@ -2,7 +2,8 @@
 	"devices": [
 		{
 			"name": "pc",
-			"input": "20:0"
+			"input": "20:0",
+			"input_filters": ["ignore_sense", "ignore_clock"]
 		},
 		{
 			"name": "sc88",

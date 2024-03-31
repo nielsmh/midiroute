@@ -3,12 +3,15 @@ pub struct Device {
     pub input: Option<String>,
     pub output: Option<String>,
     pub features: Vec<String>,
+    pub input_filters: Vec<String>,
+    pub output_filters: Vec<String>,
 }
 
 pub struct Route {
     pub enabled: bool,
     pub source: String,
     pub sink: String,
+    pub filters: Vec<String>,
 }
 
 pub struct Config {
@@ -44,6 +47,12 @@ impl Config {
                         features: dev["features"].members()
                             .filter_map(|f| f.as_str().map(|s| s.to_string()) )
                             .collect(),
+                        input_filters: dev["input_filters"].members()
+                            .filter_map(|f| f.as_str().map(|s| s.to_string()))
+                            .collect(),
+                        output_filters: dev["output_filters"].members()
+                            .filter_map(|f| f.as_str().map(|s| s.to_string()))
+                            .collect(),
                     }
                 )
             )
@@ -57,6 +66,9 @@ impl Config {
                 let enabled = route["enabled"].as_bool()?;
                 let source = route["source"].as_str()?.to_string();
                 let sink = route["sink"].as_str()?.to_string();
+                let filters = route["filters"].members()
+                    .filter_map(|f| f.as_str().map(|s| s.to_string()))
+                    .collect();
 
                 if !devices.iter().any(|dev| dev.name == source) { return None; }
                 if !devices.iter().any(|dev| dev.name == sink) { return None; }
@@ -65,6 +77,7 @@ impl Config {
                     enabled: enabled,
                     source: source,
                     sink: sink,
+                    filters: filters,
                 })
             })
             .collect();

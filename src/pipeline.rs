@@ -1,7 +1,9 @@
 use alsa::seq;
 
+mod filters;
+
 trait Filter {
-    fn process(&self, event: Vec<seq::Event>) -> Vec<seq::Event>;
+    fn process(&self, events: &mut Vec<seq::Event>);
 }
 
 pub struct Pipeline {
@@ -14,7 +16,7 @@ pub struct Pipeline {
     /// Own port address used for reading and writing events
     myport: seq::Addr,
     /// Sequence of filters to apply to input
-    _filters: Vec<Box<dyn Filter>>,
+    filters: Vec<Box<dyn Filter>>,
     /// Events taken in
     ingested: u32,
     /// Events written out
@@ -22,7 +24,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(sourceport: seq::Addr, sinkport: seq::Addr) -> Result<Pipeline, String> {
+    pub fn new(sourceport: seq::Addr, sinkport: seq::Addr, filter_names: &Vec<String>) -> Result<Pipeline, String> {
         use std::ffi::CString;
 
         // create sequencer for the pipeline
@@ -65,21 +67,29 @@ impl Pipeline {
             return Err(format!("failed to subscribe sink to self: {}", why));
         }
 
+        // build filters
+        let filter_list = filter_names.iter()
+            .filter_map(|name| {
+                match filters::new(name) {
+                    Ok(f) => Some(f),
+                    Err(_) => None,
+                }
+            })
+            .collect();
+
         // finished
         Ok(Pipeline {
             sequencer: sequencer,
             sourceport: sourceport,
             sinkport: sinkport,
             myport: myport,
-            _filters: Vec::new(),
+            filters: filter_list,
             ingested: 0,
             delivered: 0,
         })
     }
 
     pub fn run(&mut self) -> Result<bool, String> {
-        use seq::EventType;
-
         let mut input = self.sequencer.input();
         match input.event_input_pending(true) {
             Ok(0) => return Ok(false),
@@ -95,21 +105,19 @@ impl Pipeline {
         event.set_subs();
         self.ingested += 1;
 
-        // FIXME: remove this and replace with a filter
-        match event.get_type() {
-            EventType::Sensing => return Ok(false),
-            EventType::Clock => return Ok(false),
-            _ => println!("{:?}", event),
+        let mut events = Vec::new();
+        events.push(event);
+        for filter in self.filters.iter_mut() {
+            filter.process(&mut events);
         }
-        // TODO: insert filter processing here
 
-        match self.sequencer.event_output_direct(&mut event) {
-            Ok(_) => {
-                self.delivered += 1;
-                Ok(true)
-            },
-            Err(why) => Err(format!("failed processing pipeline: {}", why)),
+        for mut event in events.iter_mut() {
+            match self.sequencer.event_output_direct(&mut event) {
+                Ok(_) => self.delivered += 1,
+                Err(why) => return Err(format!("failed processing pipeline: {}", why)),
+            }
         }
+        Ok(true)
     }
 
     pub fn get_status(&self) -> (u32, u32) {

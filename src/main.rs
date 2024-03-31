@@ -22,7 +22,7 @@ fn main() {
                     _ => None
                 })
                 .collect();
-            println!("port {} '{}' is type {:?} with caps {:?}", addr_str, port.get_name().unwrap_or("?"), port.get_type(), flags);
+            println!("port {} '{}' is type {:?} with caps {}", addr_str, port.get_name().unwrap_or("?"), port.get_type(), flags.join("/"));
         }
     }
 
@@ -83,7 +83,12 @@ fn main() {
                 return None;
             };
 
-            match pipeline::Pipeline::new(sourceaddr, sinkaddr) {
+            let mut filters: Vec<_> = Vec::new();
+            filters.extend_from_slice(sourcedev.input_filters.as_slice());
+            filters.extend_from_slice(route.filters.as_slice());
+            filters.extend_from_slice(sinkdev.output_filters.as_slice());
+
+            match pipeline::Pipeline::new(sourceaddr, sinkaddr, &filters) {
                 Ok(pl) => {
                     println!("constructed pipeline for route '{0}' to '{1}'", route.source, route.sink);
                     Some(pl)
@@ -98,13 +103,18 @@ fn main() {
     
     println!("now running {} pipelines, Ctrl-C to stop", pipelines.len());
     loop {
-        for pl in pipelines.iter_mut() {
+        let stats: Vec<_> = pipelines.iter_mut()
+            .map(|pl| {
             if let Err(why) = pl.run() {
                 println!("{}", why);
-            } else {
-                let (ingested, delivered) = pl.get_status();
-                print!("in: {:5}   out: {:5}\r", ingested, delivered);
-            }
-        }
+                }
+                pl.get_status()
+            })
+            .enumerate()
+            .map(|(idx, (ingested, delivered))| {
+                format!("{0} [{1:6} | {2:6}]", idx, ingested, delivered)
+            })
+            .collect();
+        print!("\r{}", stats.join("  / "));
     }
 }
