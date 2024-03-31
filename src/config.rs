@@ -75,4 +75,8 @@ impl Config {
             routes: routes,
         })
     }
+
+    pub fn get_device(&self, devname: &str) -> Option<&Device> {
+        self.devices.iter().find(|dev| dev.name == devname)
+    }
 }
