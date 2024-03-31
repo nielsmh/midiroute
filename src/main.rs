@@ -1,22 +1,11 @@
-use alsa::{
-    rawmidi,
-    card,
-};
+use alsa;
+use alsa::seq;
 use std::env;
 
 mod config;
 
 fn main() {
     let args: Vec<_> = env::args().collect();
-
-    use alsa::Ctl;
-
-    for a in card::Iter::new().map(|a| a.unwrap()) {
-        for b in rawmidi::Iter::new(&Ctl::from_card(&a, false).unwrap()).map(|b| b.unwrap()) {
-            println!("Rawmidi {:?} (hw:{},{},{}) {} - {}", b.get_stream(), a.get_index(), b.get_device(), b.get_subdevice(),
-                 a.get_name().unwrap(), b.get_subdevice_name().unwrap())
-        }
-    }
 
     let cfgfn = &args[1];
     match config::Config::read(&cfgfn) {
@@ -41,4 +30,22 @@ fn main() {
         },
         Err(why) => println!("oh no! {}", why),
     };
+
+    println!("opening sequencer");
+    let my_client = seq::Seq::open(None, Some(alsa::Direction::Capture), false)
+        .expect("wanted to open the sequencer");
+    for client in seq::ClientIter::new(&my_client) {
+        for port in seq::PortIter::new(&my_client, client.get_client()) {
+            if !port.get_type().contains(seq::PortType::HARDWARE) { continue }
+            let addr_str = format!("{}:{}", port.get_client(), port.get_port());
+            let flags: Vec<_> = port.get_capability().iter()
+                .filter_map(|cap| match cap {
+                    seq::PortCap::READ  => Some("R"),
+                    seq::PortCap::WRITE => Some("W"),
+                    _ => None
+                })
+                .collect();
+            println!("port {} '{}' is type {:?} with caps {:?}", addr_str, port.get_name().unwrap_or("?"), port.get_type(), flags);
+        }
+    }
 }

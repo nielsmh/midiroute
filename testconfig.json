@@ -2,21 +2,21 @@
 	"devices": [
 		{
 			"name": "pc",
-			"input": "hw:3,0,0"
+			"input": "20:0"
 		},
 		{
 			"name": "sc88",
-			"output": "hw:3,0,1",
+			"output": "20:1",
 			"features": ["gm", "gs"]
 		},
 		{
 			"name": "mu50",
-			"output": "hw:2,0,0",
+			"output": "16:0",
 			"features": ["gm", "xg"]
 		},
 		{
 			"name": "ns5r",
-			"output": "hw:2,0,1",
+			"output": "16:1",
 			"features": ["gm", "xg", "gs"]
 		}
 	],
