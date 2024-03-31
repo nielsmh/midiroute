@@ -3,7 +3,7 @@ use alsa::seq;
 mod filters;
 
 trait Filter {
-    fn process(&self, events: &mut Vec<seq::Event>);
+    fn process(&mut self, events: &mut Vec<seq::Event>);
 }
 
 pub struct Pipeline {

@@ -19,6 +19,13 @@
 			"name": "ns5r",
 			"output": "16:1",
 			"features": ["gm", "xg", "gs"]
+		},
+		{
+			"name": "ra50",
+			"input": "24,0",
+			"ouptut": "24,1",
+			"features": ["mt32", "ra50", "sequencer"],
+			"output_filters": ["emulate_ano"]
 		}
 	],
 	"routes": [
