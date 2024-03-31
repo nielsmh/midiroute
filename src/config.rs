@@ -20,6 +20,15 @@ pub struct Config {
     pub routes: Vec<Route>,
 }
 
+fn get_stringopt_from_value(value: &json::JsonValue) -> Option<String> {
+    value.as_str().map(|s| s.to_string())
+}
+fn get_stringvec_from_value(value: &json::JsonValue) -> Vec<String> {
+    value.members()
+        .filter_map(|f| f.as_str().map(|s| s.to_string()))
+        .collect()
+}
+
 impl Config {
     pub fn read(filename: &str) -> Result<Config, String> {
         use std::fs;
@@ -42,17 +51,11 @@ impl Config {
                 dev["name"].as_str().map(|name|
                     Device {
                         name: name.to_string(),
-                        input: dev["input"].as_str().map(|s| s.to_string()),
-                        output: dev["output"].as_str().map(|s| s.to_string()),
-                        features: dev["features"].members()
-                            .filter_map(|f| f.as_str().map(|s| s.to_string()) )
-                            .collect(),
-                        input_filters: dev["input_filters"].members()
-                            .filter_map(|f| f.as_str().map(|s| s.to_string()))
-                            .collect(),
-                        output_filters: dev["output_filters"].members()
-                            .filter_map(|f| f.as_str().map(|s| s.to_string()))
-                            .collect(),
+                        input: get_stringopt_from_value(&dev["input"]),
+                        output: get_stringopt_from_value(&dev["output"]),
+                        features: get_stringvec_from_value(&dev["features"]),
+                        input_filters: get_stringvec_from_value(&dev["input_filters"]),
+                        output_filters: get_stringvec_from_value(&dev["output_filters"]),
                     }
                 )
             )
@@ -66,9 +69,7 @@ impl Config {
                 let enabled = route["enabled"].as_bool()?;
                 let source = route["source"].as_str()?.to_string();
                 let sink = route["sink"].as_str()?.to_string();
-                let filters = route["filters"].members()
-                    .filter_map(|f| f.as_str().map(|s| s.to_string()))
-                    .collect();
+                let filters = get_stringvec_from_value(&route["filters"]);
 
                 if !devices.iter().any(|dev| dev.name == source) { return None; }
                 if !devices.iter().any(|dev| dev.name == sink) { return None; }
