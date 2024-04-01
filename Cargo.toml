@@ -1,5 +1,5 @@
 [package]
-name = "midiroute"
+name = "squiddi-midi"
 version = "0.1.0"
 edition = "2021"
 
