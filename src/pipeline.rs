@@ -17,10 +17,8 @@ pub struct Pipeline {
     myport: seq::Addr,
     /// Sequence of filters to apply to input
     filters: Vec<Box<dyn Filter>>,
-    /// Events taken in
-    ingested: u32,
-    /// Events written out
-    delivered: u32,
+    /// Statistics for the running pipeline
+    stats: PipelineStats,
 }
 
 impl Pipeline {
@@ -84,8 +82,7 @@ impl Pipeline {
             sinkport: sinkport,
             myport: myport,
             filters: filter_list,
-            ingested: 0,
-            delivered: 0,
+            stats: PipelineStats::new(),
         })
     }
 
@@ -103,7 +100,7 @@ impl Pipeline {
         };
         event.set_direct();
         event.set_subs();
-        self.ingested += 1;
+        self.stats.ingested += 1;
 
         let mut events = Vec::new();
         events.push(event);
@@ -113,15 +110,15 @@ impl Pipeline {
 
         for mut event in events.iter_mut() {
             match self.sequencer.event_output_direct(&mut event) {
-                Ok(_) => self.delivered += 1,
+                Ok(_) => self.stats.delivered += 1,
                 Err(why) => return Err(format!("failed processing pipeline: {}", why)),
             }
         }
         Ok(true)
     }
 
-    pub fn get_status(&self) -> (u32, u32) {
-        (self.ingested, self.delivered)
+    pub fn get_stats(&self) -> &PipelineStats {
+        &self.stats
     }
 }
 
@@ -129,5 +126,22 @@ impl Drop for Pipeline {
     fn drop(&mut self) {
         let _ = self.sequencer.unsubscribe_port(self.sourceport, self.myport);
         let _ = self.sequencer.unsubscribe_port(self.myport, self.sinkport);
+    }
+}
+
+
+pub struct PipelineStats {
+    /// Events taken in
+    pub ingested: u32,
+    /// Events written out
+    pub delivered: u32,
+}
+
+impl PipelineStats {
+    fn new() -> PipelineStats {
+        PipelineStats {
+            ingested: 0,
+            delivered: 0,
+        }
     }
 }

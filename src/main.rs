@@ -105,14 +105,14 @@ fn main() {
     loop {
         let stats: Vec<_> = pipelines.iter_mut()
             .map(|pl| {
-            if let Err(why) = pl.run() {
-                println!("{}", why);
+                if let Err(why) = pl.run() {
+                    println!("{}", why);
                 }
-                pl.get_status()
+                pl.get_stats()
             })
             .enumerate()
-            .map(|(idx, (ingested, delivered))| {
-                format!("{0} [{1:6} | {2:6}]", idx, ingested, delivered)
+            .map(|(idx, stats)| {
+                format!("{0} [{1:6} | {2:6}]", idx, stats.ingested, stats.delivered)
             })
             .collect();
         print!("\r{}", stats.join("  / "));
