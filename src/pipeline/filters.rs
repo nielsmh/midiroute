@@ -83,3 +83,106 @@ pub fn new(name: &str) -> Result<Box<dyn pipeline::Filter>, String> {
         _ => Err(format!("unknown filter: '{}'", name)),
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pipeline::Filter;
+
+    /// Make a note-on event
+    fn make_noteon(channel: u8, note: u8, velocity: u8) -> seq::Event<'static> {
+        let d = seq::EvNote {
+            channel: channel,
+            note: note,
+            velocity: velocity,
+            duration: 0,
+            off_velocity: 0,
+        };
+        seq::Event::new(seq::EventType::Noteon, &d)
+    }
+    /// Make a note-off event
+    fn make_noteoff(channel: u8, note: u8) -> seq::Event<'static> {
+        let d = seq::EvNote {
+            channel: channel,
+            note: note,
+            velocity: 0,
+            duration: 0,
+            off_velocity: 0,
+        };
+        seq::Event::new(seq::EventType::Noteoff, &d)
+    }
+    /// Make a channel control change event
+    fn make_chctrl(channel: u8, param: u32, value: i32) -> seq::Event<'static> {
+        let d = seq::EvCtrl {
+            channel: channel,
+            param: param,
+            value: value,
+        };
+        seq::Event::new(seq::EventType::Controller, &d)
+    }
+
+    #[test]
+    fn test_emulate_ano() {
+        let mut eano = EmulateANO(Vec::new());
+        let mut evts: Vec<seq::Event>;
+
+        // Initially zero active notes
+        assert_eq!(eano.0.len(), 0);
+
+        // One one is played and one note is active
+        evts = vec!(make_noteon(0, 10, 100));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 1);
+        assert_eq!(evts.len(), 1);
+
+        // A second note is played and two notes are active
+        evts = vec!(make_noteon(0, 12, 100));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 2);
+        assert_eq!(evts.len(), 1);
+
+        // The first note is played at zero velocity is a note-off, so back to one note active
+        evts = vec!(make_noteon(0, 10, 0));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 1);
+        assert_eq!(evts.len(), 1);
+
+        // The second note is off, so back to zero active
+        evts = vec!(make_noteoff(0, 12));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 0);
+        assert_eq!(evts.len(), 1);
+
+        // Note off for a note that isn't playing should do nothing
+        evts = vec!(make_noteoff(0, 12));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 0);
+        assert_eq!(evts.len(), 1);
+
+        // Play the same note on two different channels, should have two notes active
+        evts = vec!(make_noteon(0, 10, 100), make_noteon(1, 10, 100));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 2);
+        assert_eq!(evts.len(), 2);
+        
+        // Play one of the notes again on the same channel, should still have two notes active
+        evts = vec!(make_noteon(0, 10, 50));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 2);
+        assert_eq!(evts.len(), 1);
+
+        // All notes off on channel 1 should stop one note, leave the other active, and add a note-off event to the evts
+        evts = vec!(make_chctrl(1, 123, 0));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 1);
+        assert_eq!(evts.len(), 2);
+        assert_eq!(evts[0].get_type(), seq::EventType::Noteoff);
+
+        // Another All notes off on channel 1 should do nothing
+        evts = vec!(make_chctrl(1, 123, 0));
+        eano.process(&mut evts);
+        assert_eq!(eano.0.len(), 1);
+        assert_eq!(evts.len(), 1);
+    }
+}
